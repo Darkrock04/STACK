@@ -18,6 +18,27 @@ class RadarrViewModel @Inject constructor(
     private val radarrRepository: RadarrRepository
 ) : ViewModel() {
 
+package com.stack.app.ui.viewmodel
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.stack.app.data.model.RadarrMovie
+import com.stack.app.data.model.RadarrQueue
+import com.stack.app.data.model.RadarrSystemStatus
+import com.stack.app.data.repository.RadarrRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import javax.inject.Inject
+import java.time.LocalDate
+
+@HiltViewModel
+class RadarrViewModel @Inject constructor(
+    private val radarrRepository: RadarrRepository
+) : ViewModel() {
+
     private val _moviesState = MutableStateFlow<RadarrMoviesState>(RadarrMoviesState.Loading)
     val moviesState: StateFlow<RadarrMoviesState> = _moviesState.asStateFlow()
 
@@ -27,10 +48,17 @@ class RadarrViewModel @Inject constructor(
     private val _systemState = MutableStateFlow<RadarrSystemState>(RadarrSystemState.Loading)
     val systemState: StateFlow<RadarrSystemState> = _systemState.asStateFlow()
 
+    private val _calendarState = MutableStateFlow<RadarrCalendarState>(RadarrCalendarState.Loading)
+    val calendarState: StateFlow<RadarrCalendarState> = _calendarState.asStateFlow()
+
     init {
         loadMovies()
         loadQueue()
         loadSystemStatus()
+        // Load calendar for the next 30 days by default
+        val today = java.time.LocalDate.now()
+        val nextMonth = today.plusDays(30)
+        loadCalendar(today.toString(), nextMonth.toString())
     }
 
     fun loadMovies() {
@@ -72,10 +100,26 @@ class RadarrViewModel @Inject constructor(
         }
     }
 
+    fun loadCalendar(start: String, end: String) {
+        viewModelScope.launch {
+            _calendarState.value = RadarrCalendarState.Loading
+            radarrRepository.getCalendar(start, end).collect { result ->
+                _calendarState.value = when {
+                    result.isSuccess -> RadarrCalendarState.Success(result.getOrNull() ?: emptyList())
+                    result.isFailure -> RadarrCalendarState.Error(result.exceptionOrNull()?.message ?: "Unknown error")
+                    else -> RadarrCalendarState.Loading
+                }
+            }
+        }
+    }
+
     fun refresh() {
         loadMovies()
         loadQueue()
         loadSystemStatus()
+        val today = java.time.LocalDate.now()
+        val nextMonth = today.plusDays(30)
+        loadCalendar(today.toString(), nextMonth.toString())
     }
 }
 
@@ -95,4 +139,10 @@ sealed class RadarrSystemState {
     object Loading : RadarrSystemState()
     data class Success(val status: RadarrSystemStatus?) : RadarrSystemState()
     data class Error(val message: String) : RadarrSystemState()
-} 
+}
+
+sealed class RadarrCalendarState {
+    object Loading : RadarrCalendarState()
+    data class Success(val movies: List<RadarrMovie>) : RadarrCalendarState()
+    data class Error(val message: String) : RadarrCalendarState()
+}

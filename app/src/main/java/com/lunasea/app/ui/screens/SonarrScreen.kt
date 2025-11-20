@@ -56,7 +56,7 @@ fun SonarrScreen(navController: NavController) {
         when (selectedTabIndex) {
             0 -> SonarrSeriesTab(viewModel)
             1 -> SonarrQueueTab(viewModel)
-            2 -> SonarrCalendarTab()
+            2 -> SonarrCalendarTab(viewModel)
             3 -> SonarrWantedTab()
             4 -> SonarrSystemTab(viewModel)
         }
@@ -105,83 +105,6 @@ fun SonarrSeriesTab(viewModel: SonarrViewModel) {
                     text = (seriesState as SonarrSeriesState.Error).message,
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.error
-                )
-            }
-        }
-    }
-}
-
-@Composable
-fun SonarrQueueTab(viewModel: SonarrViewModel) {
-    val queueState by viewModel.queueState.collectAsState()
-    
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp)
-    ) {
-        Text(
-            text = stringResource(R.string.queue),
-            style = MaterialTheme.typography.headlineMedium
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-        
-        when (queueState) {
-            is SonarrQueueState.Loading -> {
-                CircularProgressIndicator()
-                Text(
-                    text = stringResource(R.string.loading),
-                    style = MaterialTheme.typography.bodyMedium
-                )
-            }
-            is SonarrQueueState.Success -> {
-                val queue = (queueState as SonarrQueueState.Success).queue
-                if (queue.isEmpty()) {
-                    Text(
-                        text = stringResource(R.string.no_data),
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                } else {
-                    Text(
-                        text = "${queue.size} items in queue",
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                }
-            }
-            is SonarrQueueState.Error -> {
-                Text(
-                    text = (queueState as SonarrQueueState.Error).message,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.error
-                )
-            }
-        }
-    }
-}
-
-@Composable
-fun SonarrCalendarTab() {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp)
-    ) {
-        Text(
-            text = stringResource(R.string.calendar),
-            style = MaterialTheme.typography.headlineMedium
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-        Text(
-            text = stringResource(R.string.loading),
-            style = MaterialTheme.typography.bodyMedium
-        )
-    }
-}
-
-@Composable
-fun SonarrWantedTab() {
-    Column(
-        modifier = Modifier
             .fillMaxSize()
             .padding(16.dp)
     ) {

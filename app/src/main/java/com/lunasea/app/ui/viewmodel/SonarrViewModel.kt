@@ -18,6 +18,28 @@ class SonarrViewModel @Inject constructor(
     private val sonarrRepository: SonarrRepository
 ) : ViewModel() {
 
+package com.stack.app.ui.viewmodel
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.stack.app.data.model.SonarrSeries
+import com.stack.app.data.model.SonarrQueue
+import com.stack.app.data.model.SonarrSystemStatus
+import com.stack.app.data.model.SonarrEpisode
+import com.stack.app.data.repository.SonarrRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import java.time.LocalDate
+import javax.inject.Inject
+
+@HiltViewModel
+class SonarrViewModel @Inject constructor(
+    private val sonarrRepository: SonarrRepository
+) : ViewModel() {
+
     private val _seriesState = MutableStateFlow<SonarrSeriesState>(SonarrSeriesState.Loading)
     val seriesState: StateFlow<SonarrSeriesState> = _seriesState.asStateFlow()
 
@@ -27,10 +49,17 @@ class SonarrViewModel @Inject constructor(
     private val _systemState = MutableStateFlow<SonarrSystemState>(SonarrSystemState.Loading)
     val systemState: StateFlow<SonarrSystemState> = _systemState.asStateFlow()
 
+    private val _calendarState = MutableStateFlow<SonarrCalendarState>(SonarrCalendarState.Loading)
+    val calendarState: StateFlow<SonarrCalendarState> = _calendarState.asStateFlow()
+
     init {
         loadSeries()
         loadQueue()
         loadSystemStatus()
+        // Load calendar for the next 30 days by default
+        val today = java.time.LocalDate.now()
+        val nextMonth = today.plusDays(30)
+        loadCalendar(today.toString(), nextMonth.toString())
     }
 
     fun loadSeries() {
@@ -72,10 +101,26 @@ class SonarrViewModel @Inject constructor(
         }
     }
 
+    fun loadCalendar(start: String, end: String) {
+        viewModelScope.launch {
+            _calendarState.value = SonarrCalendarState.Loading
+            sonarrRepository.getCalendar(start, end).collect { result ->
+                _calendarState.value = when {
+                    result.isSuccess -> SonarrCalendarState.Success(result.getOrNull() ?: emptyList())
+                    result.isFailure -> SonarrCalendarState.Error(result.exceptionOrNull()?.message ?: "Unknown error")
+                    else -> SonarrCalendarState.Loading
+                }
+            }
+        }
+    }
+
     fun refresh() {
         loadSeries()
         loadQueue()
         loadSystemStatus()
+        val today = java.time.LocalDate.now()
+        val nextMonth = today.plusDays(30)
+        loadCalendar(today.toString(), nextMonth.toString())
     }
 }
 
@@ -95,4 +140,10 @@ sealed class SonarrSystemState {
     object Loading : SonarrSystemState()
     data class Success(val status: SonarrSystemStatus?) : SonarrSystemState()
     data class Error(val message: String) : SonarrSystemState()
-} 
+}
+
+sealed class SonarrCalendarState {
+    object Loading : SonarrCalendarState()
+    data class Success(val episodes: List<com.stack.app.data.model.SonarrEpisode>) : SonarrCalendarState()
+    data class Error(val message: String) : SonarrCalendarState()
+}
